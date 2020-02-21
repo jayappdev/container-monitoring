@@ -1,0 +1,63 @@
+version: "3"
+
+networks:
+  loki:
+
+services:
+  cadvisor:
+    image: google/cadvisor:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - /sys:/sys:ro 
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /var/log:/var/log
+    networks:
+      - loki
+
+  nodeexporter:
+    image: prom/node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - loki
+   
+  prometheus:
+    image: prom/prometheus 
+    ports:
+      - "9090:9090"
+    volumes:
+      - $PWD/promethus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - loki
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - loki
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/docker-config.yaml
+    networks:
+      - loki
+
+  grafana:
+    image: grafana/grafana:master
+    ports:
+      - "3000:3000"
+    volumes:
+      - $PWD/container_metrics.json:/var/lib/grafana/dashboards/container_metrics.json
+      - $PWD/datasources.yml:/etc/grafana/provisioning/datasources/datasource.yaml
+      - $PWD/promethus/providers.yml:/etc/grafana/provisioning/dashboards/provider.yaml
+
+    networks:
+      - loki
+
